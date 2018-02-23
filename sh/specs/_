@@ -21,6 +21,7 @@ case "$ACTION" in
     ;;
 
   run)
+    reset
     cd "$THIS_DIR"
     mkdir -p tmp/in tmp/out
     local +x out=tmp/out/specs

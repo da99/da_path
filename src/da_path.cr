@@ -2,7 +2,7 @@
 struct DA_Path
 
   @raw = Deque(Char).new
-  delegate :size, :empty?, to: @raw
+  delegate :first, :first?, :last, :last?, :size, :empty?, to: @raw
 
   def initialize
   end # === def initialize
@@ -12,6 +12,10 @@ struct DA_Path
       @raw.push c
     }
   end # === def initialize
+
+  def root?
+    @raw.size == 1 && first == '/'
+  end # === def root?
 
   def starts_with?(s : String)
     return false if s.size > size
@@ -23,6 +27,14 @@ struct DA_Path
     true
   end # === def starts_with?
 
+  def starts_with?(*chars)
+    return false if chars.size > size
+    chars.each_with_index { |c, i|
+      return false if !(self[i] == c)
+    }
+    true
+  end # === def matches?
+
   def matches?(s : String)
     return false if s.empty?
     return false if empty?
@@ -32,6 +44,10 @@ struct DA_Path
       return false if !(self[i] == c)
     }
     true
+  end # === def matches?
+
+  def matches?(c : Char)
+    return @raw.size == 1 && @raw.first == c
   end # === def matches?
 
   def push(c : Char)
@@ -58,7 +74,8 @@ struct DA_Path
         tokens.push t
         t = DA_Path.new
 
-      when i == size
+      when i == (size - 1)
+        t.push c
         tokens.push t
         t = DA_Path.new
 
@@ -77,6 +94,13 @@ struct DA_Path
 
   def each_with_index
     @raw.each_with_index { |c, i| yield c, i }
+  end
+
+  def to_s(io)
+    @raw.each { |c|
+      io << c
+    }
+    io
   end
 
 end # === struct DA_Path
