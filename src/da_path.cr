@@ -1,6 +1,34 @@
 
 struct DA_Path
 
+  struct Word
+
+    @raw = Deque(Char).new
+    delegate :size, :first, :last, :empty?, :[], :[]?, to: @raw
+
+    def initialize(s : String)
+      last_index = s.size - 1
+      s.each_char_with_index { |c, i|
+        next if i == 0 && c == '/'
+        next if i == last_index && c == '/'
+        @raw.push c
+      }
+    end # === def initialize
+
+    def each_char_with_index
+      @raw.each_with_index { |c, i|
+        yield c, i
+      }
+    end # === def each_char_with_index
+
+  end # === struct Word
+
+  # =============================================================================
+  # Instance:
+  # =============================================================================
+
+  getter tokens = Deque(DA_Path).new
+
   @raw = Deque(Char).new
   delegate :first, :first?, :last, :last?, :size, :empty?, to: @raw
 
@@ -8,14 +36,39 @@ struct DA_Path
   end # === def initialize
 
   def initialize(s : String)
-    s.each_char { |c|
+    last_index = s.size - 1
+    token = DA_Path.new
+    s.each_char_with_index { |c, i|
+      case c
+      when '/'
+        if i != 0
+          @tokens.push token
+          token = DA_Path.new
+        end
+      else
+        token.push c
+        if i == last_index
+          @tokens.push token
+          token = DA_Path.new
+        end
+      end
+
       @raw.push c
     }
   end # === def initialize
 
-  def root?
-    @raw.size == 1 && first == '/'
-  end # === def root?
+  def ==(c : Char)
+    return false if size != 1
+    first == c
+  end # === def ==
+
+  def ==(s : String | Word)
+    return false if size != s.size
+    s.each_char_with_index { |c, i|
+      return false unless @raw[i] == c
+    }
+    true
+  end
 
   def starts_with?(s : String)
     return false if s.size > size
@@ -26,29 +79,6 @@ struct DA_Path
     }
     true
   end # === def starts_with?
-
-  def starts_with?(*chars)
-    return false if chars.size > size
-    chars.each_with_index { |c, i|
-      return false if !(self[i] == c)
-    }
-    true
-  end # === def matches?
-
-  def matches?(s : String)
-    return false if s.empty?
-    return false if empty?
-    return false if s.size != size
-
-    s.each_char_with_index { |c, i|
-      return false if !(self[i] == c)
-    }
-    true
-  end # === def matches?
-
-  def matches?(c : Char)
-    return @raw.size == 1 && @raw.first == c
-  end # === def matches?
 
   def push(c : Char)
     @raw.push c
@@ -86,7 +116,7 @@ struct DA_Path
     }
 
     tokens
-  end
+  end # def split
 
   def each
     @raw.each { |c| yield c }
@@ -95,6 +125,38 @@ struct DA_Path
   def each_with_index
     @raw.each_with_index { |c, i| yield c, i }
   end
+
+  def params(*args)
+    target = Deque(DA_Path | Symbol).new
+
+    args.each { |x|
+      case x
+      when String
+        DA_Path.new(x).tokens.each { |t|
+          target.push t
+        }
+      when Symbol
+        target.push x
+      else
+        raise Exception.new("Invalid type for param: #{x.inspect}")
+      end
+    }
+
+    return nil if tokens.size != target.size
+
+    vals = {} of Symbol => String
+    target.each_with_index { |x, i|
+      t = @tokens[i]
+      case x
+      when DA_Path
+        return nil unless t == x
+      when Symbol
+        vals[x] = t.to_s
+      end
+    }
+
+    vals
+  end # === def params
 
   def to_s(io)
     @raw.each { |c|
